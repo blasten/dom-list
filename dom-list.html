@@ -1,0 +1,121 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../polymer/src/templatizer/templatizer.html">
+
+<dom-module id="dom-list">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+
+      ::slotted(*) {
+        position: relative;
+        color: blue;
+      }
+    </style>
+
+    <slot id="slot"></slot>
+
+  </template>
+  <script>
+
+    Polymer({
+      is: 'dom-list',
+
+      properties: {
+        items: {
+          type: Array
+        },
+
+        template: {
+          type: Function,
+          observer: '_templateChanged'
+        }
+      },
+
+      observers: [
+        '_itemsChanged(items.*)'
+      ],
+
+      attached() {
+        let templates = Polymer.dom(this.$.slot).getDistributedNodes()
+            .filter(node => node.localName === 'template');
+
+        if (templates.length == 0) {
+          console.error('<template> element required');
+          return;
+        }
+        this._instParent = Polymer.dom(templates[0]).parentNode;
+        this._templatizer = new Polymer.Templatizer();
+        this._instances = [];
+        this._ctor = new WeakMap();
+      },
+
+      _itemsChanged(change) {
+        this.debounce('render', this._render);
+      },
+
+      _templateChanged(templateFn) {
+        this._templateFn = typeof templateFn == 'function' ? templateFn :
+          function() {
+            let dataHost = this._instParent.__dataHost._rootDataHost || this._instParent.__dataHost;
+            return dataHost[templateFn].apply(dataHost, arguments); 
+          };
+        this.debounce('render', this._render);
+      },
+
+      _getConstructorForItem: function(item, index) {
+        let template = this._templateFn(item, index);
+        if (this._ctor.has(template)) {
+          return this._ctor.get(template);
+        } 
+        let self = this;
+        let ctor = this._templatizer.templatize(template, {
+          instanceProps: {
+            item: true,
+            index: true
+          },
+          fwdHostPropToInstance(template, prop, value) {
+            self._instances.forEach(instance => {
+              instance.forwardProperty(prop, value, template);
+            });
+          },
+          fwdInstancePropToHost(inst, prop, value) {
+            if (Polymer.Path.matches('item', prop)) {
+              let idx = inst.index;
+              if (prop =='item') {
+                self.items[idx] = value;
+              }
+              let path = Polymer.Path.translate('item', 'items.' + idx, prop);
+              self.notifyPath(path, value);
+            }
+          }
+        });
+        this._ctor.set(template, ctor);
+        return ctor;
+      },
+
+      _render() {
+        this._instances
+          .forEach(instance => {
+            Array.from(instance.children).forEach(child => {
+              instance.root.appendChild(child);
+            });
+          });
+        this._instances = this.items
+          .map((item, idx) => {
+            let Constructor = this._getConstructorForItem(item, idx);
+            return new Constructor(this, {
+              item: item,
+              index: idx
+            });
+          });
+        this._instances
+          .forEach(instance => {
+            Polymer.dom(this._instParent).appendChild(instance.root);
+          });
+      }
+    });
+
+  </script>
+</dom-module>

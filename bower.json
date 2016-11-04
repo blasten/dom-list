@@ -1,0 +1,6 @@
+{
+  "name": "templatizer-exp",
+  "dependencies": {
+    "polymer": "Polymer/polymer#2.0-preview"
+  }
+}

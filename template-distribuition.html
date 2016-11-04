@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="import" href="../polymer/polymer.html">
+  <link rel="import" href="dom-list.html">
+</head>
+<body>
+
+  <dom-module id="x-a">
+    <template>
+      <style>
+        :host {
+          display: block;
+        }
+      </style>
+
+      <dom-list items="[[items]]" template="[[template]]">
+        <slot></slot>
+      </dom-list>
+
+    </template>
+    <script>
+      Polymer({
+        is: 'x-a',
+
+        properties: {
+          items: Array,
+          template: Function
+        }
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-b">
+    <template>
+      <style>
+        :host {
+          display: block;
+        }
+
+        .even {
+          color: red;
+        }
+
+        .odd {
+          color: green;
+        }
+      </style>
+
+      Parent Prop: <input type="text" value="{{parentProp::input}}">
+
+      <x-a items="[[items]]" template="_selectTemplate">
+        <template id="templateForEvenItem">
+          <div class="even"> 
+            <input type="checkbox" checked="{{item.checked::change}}"> 
+            <input type="checkbox" checked="{{parentBoolean::change}}"> 
+            [[parentProp]] [[index]] - [[item.name]] - checked: [[item.checked]] 
+            (Even Template)
+          </div>
+        </template>
+        <template id="templateForOddItem">
+          <div class="odd"> 
+            <input type="checkbox" checked="{{item.checked::change}}"> 
+            <input type="checkbox" checked="{{parentBoolean::change}}"> 
+            [[parentProp]] [[index]] - [[item.name]] - checked: [[item.checked]]
+            (Odd Template)
+          </div>
+        </template>
+      </x-a>
+
+    </template>
+    <script>
+      Polymer({
+        is: 'x-b',
+        properties: {
+          items: Array,
+
+          parentProp: {
+            type: String,
+            value: 'item:'
+          },
+
+          parentBoolean: Boolean
+        },
+
+        attached() {
+          this.items = (new Array(100))
+            .fill(null)
+            .map(() => {
+              return { name: 'Name ', checked: false };
+            });
+        },
+
+        _selectTemplate: function(item, idx) {
+          return idx % 2 === 0 ? this.$.templateForEvenItem : this.$.templateForOddItem;
+        }
+      });
+    </script>
+  </dom-module>
+
+  <x-b></x-b>
+  
+</body>
+</html>
